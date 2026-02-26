@@ -1,0 +1,307 @@
+You are working inside an existing Replit web app: https://fantasy-royale.replit.app
+CRITICAL REQUIREMENTS:
+1) Do NOT change any existing styling, layout, component structure, theme, or UI look-and-feel. Preserve all CSS/Tailwind/classes and markup structure. Only add minimal UI fields/components if absolutely required for missing data display or admin inputs, and match existing styles.
+2) Make the app FUNCTIONAL end-to-end by implementing the rules systems below and syncing data across all features. If a screen exists already, wire it up; do not redesign it.
+3) Implement with a clean, event-driven approach: immutable ledgers for points/crowns, deterministic state derivation, and admin-configurable rules. Add robust validation and anti-abuse limits.
+4) Contests are independent from ELO leaderboards. Contest outcomes determine contest winners only; ELO progression is computed from picks correctness within contests, sport-specific. (Per attached Gamification.pdf)
+5) ELO tiers: Bronze/Silver/Gold/Champion with threshold-based tiers; pre-Champion is +/0 (no negative); Champion is +/- with a hard floor at Champion threshold and Champion status cannot be lost. (Per attached Gamification.pdf)
+6) Badges are purely visual/status; can be earned by milestones/leaderboard placements; trophy case stores all; name tag has limited slots; skins override name tag styling; badges do not affect scoring. (Per attached Gamification.pdf)
+7) Crown System is the platform-wide reward currency (participation/performance/consistency/bonus actions) and also drives monthly giveaway entries. Crowns NEVER get spent for giveaway entries; they persist forever for status and re-enter monthly drawings.
+8) Implement “Seasonal reset” for ELO per sport; Crowns and Crown Status never reset.
+
+STEP 0 — REPO DISCOVERY (DO THIS FIRST)
+- Inspect the codebase to determine:
+  - Frontend framework (React/Next/Vite/etc), routing, state management
+  - Backend/API approach (Express, Next API routes, serverless, etc)
+  - Database (Supabase/Postgres, Prisma/Drizzle, SQLite, Replit DB, etc)
+  - Existing models/tables/collections for users, contests, picks, leaderboards
+- Use the existing stack and patterns. Do not introduce a new framework. If ORM exists, use it.
+- Add migrations safely (create new tables if missing). Avoid breaking changes.
+
+ARCHITECTURE PRINCIPLE
+- Use a “ledger + derived views” design:
+  - Crowns: immutable CrownLedger entries; CrownBalance is derived (or cached) from ledger sums.
+  - ELO: store current_elo per user per sport per season; updates occur via PickResult events.
+  - Badges: BadgeAwards immutable; UI derives trophy case and name tag selection from awards + user preferences (within constraints).
+- Add a unified “GamificationEvent” service to emit/handle:
+  - ContestEntered, PickSubmitted, PickGraded, ContestClosed, WeeklyStreakEvaluated, BonusActionCompleted, MonthlyGiveawaySnapshotted
+
+DATA MODEL (CREATE IF NOT EXISTS; ADAPT TO CURRENT DB)
+A) Core
+- users: id, username, created_at, timezone (default America/New_York), role (user/admin), etc.
+- sports: id, name, active
+- seasons: id, sport_id, name, start_at, end_at, is_active
+- contests: id, sport_id, season_id nullable, brand_id nullable, type, title, rules_json, scoring_json, tiebreaker_json, status (draft/open/closed/concluded), opens_at, closes_at
+- contest_entries: id, contest_id, user_id, entered_at, entry_metadata_json
+
+B) Picks & Contest Scoring
+- picks: id, contest_id, user_id, pick_json, submitted_at
+- pick_results: id, pick_id, is_correct boolean, graded_at, grade_details_json
+- contest_scores: id, contest_id, user_id, score_numeric, rank_int nullable, tiebreaker_value nullable, computed_at
+  - NOTE: contest_scores is ONLY for that contest’s leaderboard. Do not roll into ELO leaderboard.
+
+C) Crowns (platform-wide)
+- crown_ledger: id, user_id, event_type, event_ref_type, event_ref_id, amount_int, meta_json, created_at
+  - event_type examples: CONTEST_ENTRY, FIRST_TIME_BONUS, CONTEST_PLACEMENT, WEEKLY_STREAK_BONUS, REFERRAL, SHARE, SPONSOR_CHALLENGE, ADMIN_ADJUST
+- crown_balance_cache (optional): user_id, total_crowns_int, updated_at (or compute on read)
+- crown_status: user_id, status_level, updated_at
+  - status_level derived from total crowns thresholds; store cached for quick display
+
+D) Crown Giveaways (monthly)
+- giveaway_months: id, month_key (YYYY-MM), opens_at, closes_at, status (open/locked/drawn), prize_pool_json, created_at
+- giveaway_snapshot: id, giveaway_month_id, user_id, crowns_at_lock_int, entries_int, created_at
+- giveaway_winners: id, giveaway_month_id, user_id, drawn_at, prize_json
+
+E) ELO (sport-specific, season-specific)
+- user_sport_elo: id, user_id, sport_id, season_id, current_elo_int, current_tier, champion_unlocked_bool, updated_at
+- elo_config: sport_id, season_id, thresholds_json, points_per_correct_pick_default_int, points_per_incorrect_pick_champion_int, visibility_json
+  - thresholds_json includes ranges for Bronze/Silver/Gold/Champion (configurable)
+  - champion_threshold is included here
+
+F) Badges
+- badge_definitions: id, code, name, description, type (NAMETAG_BADGE | NAMETAG_SKIN | TROPHY_ONLY), icon_asset_ref, rules_json, is_active
+- badge_awards: id, user_id, badge_id, awarded_at, award_reason_json
+- user_badge_preferences: user_id, nametag_skin_badge_id nullable, nametag_badge_ids_json (array max N), updated_at
+  - enforce limits and type constraints
+
+G) Sponsor/Bonus Challenges (optional but recommended)
+- sponsor_campaigns: id, brand_id, title, starts_at, ends_at, multiplier_json, bonus_rules_json, is_active
+  - multiplier_json can specify 2x crowns on certain event_types
+  - bonus_rules_json can define “enter 3 contests this week -> +100 crowns”
+
+RULES IMPLEMENTATION
+
+1) CONTEST SYSTEM (INDEPENDENT)
+- Each contest defines:
+  - scoring logic (rules_json/scoring_json)
+  - leaderboard behavior (contest_scores)
+  - tie-breaker (tiebreaker_json)
+- Provide contest status flow:
+  - draft -> open -> closed -> concluded
+  - closed: no more picks/entries; compute leaderboard
+  - concluded: winners finalized + badge/placement crowns issued
+- Tie-breaker:
+  - must be defined per contest
+  - tie-breaker only affects ordering, not the score value
+- Contest result types supported:
+  - weekly winner
+  - end-of-season winner
+- Contest outcomes do NOT directly change ELO. ELO changes only via pick grading events.
+
+2) ELO SYSTEM (SPORT-SPECIFIC, PER SEASON)
+- For each sport, maintain user_sport_elo row for active season.
+- ELO earned from picks in contests of that sport:
+  - On PickGraded:
+    - Determine champion_threshold from elo_config
+    - If current_elo >= champion_threshold:
+      - Correct: +points_correct (contest-specific override else default)
+      - Incorrect: -points_incorrect (configurable; default symmetrical)
+      - Apply Champion floor: if new_elo < champion_threshold, set to champion_threshold
+      - champion_unlocked remains true
+    - Else (pre-Champion):
+      - Correct: +points_correct
+      - Incorrect: +0 (no negative pre-Champion)
+- Tier assignment:
+  - based on thresholds_json
+  - Champion tier is permanent once reached due to floor rule
+- Visibility:
+  - Pre-Champion: show tier + progress bar to next tier; DO NOT show public ELO leaderboard for Bronze/Silver/Gold
+  - Champion: unlock Champion-only leaderboard per sport ranking by current_elo above threshold
+- Seasonal reset:
+  - On new season start: reset user_sport_elo for that sport/season (new rows or reset to baseline)
+  - Badges/cosmetics can persist; ELO does not
+
+3) CROWN SYSTEM (PLATFORM-WIDE)
+Crowns are separate from ELO and contests. Crowns are a universal reward currency + permanent status metric + monthly giveaway entries.
+
+Crown earning pillars and default values (admin-configurable):
+A) Entry Crowns
+- Enter any contest: +10 crowns (event_type=CONTEST_ENTRY, ref=contest_entry_id)
+- First-time player (first ever contest entry on platform): +50 crowns one-time (event_type=FIRST_TIME_BONUS)
+- Weekly multi-entry bonus (optional): If user enters >= X contests in same week -> +Y crowns (configurable)
+
+B) Placement Crowns (awarded when contest is concluded and final ranks are computed)
+- 1st place: +200 crowns
+- Top 10%: +100 crowns
+- Beat average / above median: +25 crowns
+Implementation:
+- When contest concludes, compute rank + percentile and issue the BEST matching reward tier once (don’t stack 1st + top10 etc; choose highest).
+- If contest has low participants, define minimum N for percentile tiers; else fall back to rank tiers.
+- Record in crown_ledger with event_type=CONTEST_PLACEMENT and meta including contest_id, rank, percentile, rule_applied
+
+C) Streak Crowns (weekly participation streak)
+- Define “active week” = user has >=1 contest entry within that weekly window.
+- Weekly windows reset every Sunday 23:59:59 in user timezone (default America/New_York unless set).
+- Streak bonuses:
+  - 2-week streak: +50 bonus
+  - 4-week streak: +150 bonus
+  - 8-week streak: +400 bonus
+- Missing a week resets streak to 0.
+Implementation:
+- Maintain user_streak table or derive from entries; recommended:
+  - user_weekly_activity: user_id, week_key (YYYY-WW), has_entry bool
+  - user_streaks: user_id, current_streak_weeks_int, best_streak_int, last_week_key, updated_at
+- On weekly boundary job or when user opens app after boundary, evaluate streak and award milestone bonuses exactly once per milestone per streak run.
+
+D) Bonus Crowns (growth/community)
+- Referral: +100 crowns to referrer AND +100 to referred user after referred completes first contest entry (anti-abuse)
+- Share leaderboard: +25 crowns per share, limit 3/day (or config)
+- Sponsored events/challenges: can apply multipliers (e.g., 2x weekend) or fixed bonuses based on campaign rules
+Implementation:
+- Create endpoints/actions for each bonus event and validate limits.
+- Record each award in crown_ledger with deterministic idempotency keys to prevent duplicate awards.
+
+Crown status levels (permanent, never expires; derived from total crowns):
+- Squire: 0–500
+- Knight: 501–2,000
+- Baron: 2,001–5,000
+- Duke: 5,001–10,000
+- Royalty: 10,001+
+Implementation:
+- After any crown_ledger insert, recompute user’s total crowns (sum) and update cached crown_status if threshold crossed.
+- Status never decreases.
+
+4) MONTHLY CROWN GIVEAWAYS
+- Each month has a giveaway_month (YYYY-MM).
+- “Every Crown = One Entry”:
+  - entries_int = crowns_at_lock_int for that month snapshot
+- Crowns are NOT spent; they remain for status and future months.
+Monthly flow:
+- giveaway_month status=open while month is active
+- at month close: lock snapshots (status=locked)
+  - for each user with crowns >0, store giveaway_snapshot with crowns_at_lock and entries
+- draw winners: weighted random draw based on entries
+  - Use cryptographically secure RNG if available in runtime; store seed/audit info in meta for transparency
+- publish winners publicly on existing leaderboard UI (do not redesign)
+Admin can configure:
+- number of winners
+- prize_pool_json
+- eligibility filters (e.g., must have at least 1 contest entry that month to be eligible)
+Implementation details:
+- Eligibility best practice: require at least 1 contest entry in the month to avoid dormant whales. Make admin-configurable with default ON.
+- When computing crowns_at_lock, use total lifetime crowns but eligibility still can require monthly activity.
+
+5) BADGES (VISUAL ONLY)
+Implement badge rules consistent with Gamification.pdf:
+- Badge earning is automatic (achievement-based), not manual:
+  - Milestones:
+    - First contest entered
+    - First contest win
+    - Crown status tiers achieved
+    - Streak milestones (2/4/8 weeks)
+    - Champion tier unlocked per sport
+  - Leaderboard placements:
+    - Contest 1st place
+    - Monthly giveaway winner
+    - Champion leaderboard top ranks (optional)
+- Badge display:
+  - Trophy case shows ALL earned badges
+  - Name tag has:
+    - max 1 skin badge active (type NAMETAG_SKIN)
+    - max N icon badges shown (type NAMETAG_BADGE), enforce limit (default N=3, admin-configurable)
+  - Skins override name tag appearance; badges layer on top
+- Badges do not affect points, crowns, ELO, or contest outcomes.
+
+ADMIN DASHBOARD (NO REDESIGN; WIRE FIELDS INTO EXISTING ADMIN UI)
+Add admin controls (minimal UI additions only where missing; keep existing components/styles):
+1) Crown Rules Config
+- entry_crowns_per_contest (default 10)
+- first_time_bonus (default 50)
+- placement_rewards (1st=200, top10=100, beat_avg=25)
+- streak_milestones (2=50,4=150,8=400)
+- bonus rules (referral=100 each; share=25; daily limits)
+- global multipliers by date range (for sponsor “2x weekends”)
+
+2) ELO Config (per sport per season)
+- thresholds_json for tiers
+- points per correct pick default
+- champion incorrect penalty
+- champion threshold
+- enable champion leaderboard
+- seasonal reset controls (start/end dates)
+
+3) Contest Builder Fields
+- contest type (team picks, over/under, position accumulation, season-long survival, season-long picks)
+- sport_id, season_id
+- pick_definitions (what picks exist)
+- scoring_json (contest leaderboard scoring)
+- tiebreaker_json (required)
+- elo_points_override per correct pick (optional)
+- crown placement awards toggle (optional)
+- open/close times
+
+4) Badge Definitions
+- enable/disable badge defs
+- set nametag limit N
+- mapping of milestones to badge codes (or rules_json)
+
+5) Fraud/Anti-abuse panel (basic)
+- rate limits and daily caps
+- referral abuse detection (same device/ip/email domain flags if available)
+- ledger audit table viewer (read-only)
+
+USER EXPERIENCE (NO REDESIGN; JUST MAKE IT WORK)
+Wire the existing user dashboard/profile screens to show:
+- Crown total (from ledger sum/cache)
+- Crown status badge (Squire/Knight/etc)
+- Monthly giveaway: current month entries + eligibility status + countdown to close
+- Streak: current streak weeks + next milestone progress
+- ELO: per sport:
+  - tier + progress to next tier (pre-Champion)
+  - Champion leaderboard access (Champion only)
+- Trophy case badges grid + name tag selections (respect limits)
+Wire contest screens:
+- Enter contest -> create contest_entry -> award entry crowns
+- Submit picks -> store picks
+- When picks are graded -> update ELO and (optionally) award crowns for correctness ONLY if you explicitly add that rule; default: crowns are NOT awarded per correct pick (keeps crowns from inflating too fast). If you do add it, make it admin-configurable and capped.
+
+ANTI-ABUSE / INTEGRITY (REQUIRED)
+- Implement idempotency for every crown award:
+  - Unique constraint on (user_id, event_type, event_ref_type, event_ref_id) OR hash key
+- Daily caps:
+  - shares max 3/day by default
+  - referrals: only after referred user completes first contest entry; each referred user can trigger referral bonus once
+- Prevent duplicate contest entry crown awards for same contest_entry_id
+- Server-side validation for all award events (do not trust client)
+- All point/crown changes must be logged to ledger
+
+IMPLEMENTATION TASKS (DO THIS IN ORDER)
+1) Add DB tables/migrations for: crown_ledger, user_sport_elo, elo_config, badge_definitions, badge_awards, user_badge_preferences, giveaway_* (and any missing contest/pick tables)
+2) Create GamificationEvent service:
+   - awardCrowns(userId, amount, eventType, refType, refId, meta) with idempotency
+   - updateCrownStatus(userId)
+   - updateEloFromPickGrade(userId, sportId, seasonId, isCorrect, contestConfig)
+   - evaluateWeeklyStreak(userId, weekKey) + milestone awards
+   - snapshotMonthlyGiveaway(monthKey) + drawWinners(monthKey)
+3) Wire existing API routes/actions:
+   - POST /contests/:id/enter
+   - POST /contests/:id/picks
+   - POST /admin/contests (create/update)
+   - POST /admin/grade (or background job) to grade picks and trigger ELO updates
+   - POST /admin/giveaways/:month/lock, /draw
+4) Wire UI data fetching to display existing UI elements:
+   - crown balance, status, streak, giveaway entries, ELO tier/progress, badges
+   - champion leaderboard gating
+5) Add minimal admin forms for configs if missing; reuse existing form components/styles
+6) Add tests (at least basic unit tests) for:
+   - ELO pre-Champion no-negative, Champion +/- and floor
+   - contest independence
+   - crown idempotency
+   - streak reset and milestone awards
+   - giveaway snapshot and weighted draw
+
+EDGE CASES TO HANDLE
+- User enters multiple contests quickly (race conditions): ensure crown ledger idempotency
+- User crosses Champion threshold mid-week: Champion mode applies immediately once threshold reached
+- Champion cannot drop below threshold even with multiple incorrect picks
+- Season switch: ensure ELO references active season; avoid mixing
+- Timezones for weekly streak evaluation and monthly giveaway cutoffs
+- Contest tie-breakers: rank ordering stable; same score -> tie-breaker field decides
+
+DELIVERABLE EXPECTATIONS
+- The app runs without errors and shows consistent values across:
+  - contest entry counts, crown totals, crown status, ELO tiers, badges, monthly giveaway entries
+- Admin can configure rules without code changes.
+- No visual redesign or styling changes.
+
+Now implement all of the above inside the current codebase, following existing patterns, and provide a concise summary of what files you changed and how to run migrations/tests.

@@ -1,0 +1,356 @@
+You are working inside an existing Replit web app: https://fantasy-royale.replit.app
+Backend is Supabase (Postgres + Auth + Storage) at: https://zfdrbwfvcccaouisqywp.supabase.co
+
+PRIMARY GOAL
+Implement a precise, auditable, non-breaking points ecosystem (Crowns + ELO + badges + streaks + giveaways) that works across ALL app surfaces (contests, feeds, profiles, leaderboards, room builder, avatar creator, gallery), while guaranteeing ZERO disruption to existing styling/layout/look-and-feel—especially in the Room Builder and Avatar Creator.
+
+ABSOLUTE NON-NEGOTIABLES
+1) ZERO UI/STYLE CHANGE GUARANTEE:
+   - Do not change any existing styling, layout, Tailwind/CSS classes, spacing, typography, component structure, animations, canvas/room builder rendering logic, avatar creator rendering logic, or asset pipelines.
+   - This includes: Room Builder grid, layers, Z-sorting, placement controls, palettes, drag/drop, camera, isometric tiles, avatar editor, cosmetics UI, previews, and any custom canvas/WebGL logic.
+   - Only permitted UI changes:
+     a) wiring existing UI to real data,
+     b) adding missing data fields where a value is currently blank, broken, or hardcoded,
+     c) adding minimal new toggles/inputs in Admin ONLY if there is no existing place for config, and they must reuse existing admin components and styles.
+2) FUNCTIONALITY ONLY:
+   - Focus on backend logic, data contracts, state sync, and safe wiring. No redesign.
+3) SUPABASE-FIRST:
+   - All persistence and authoritative state must live in Supabase Postgres.
+   - Use Supabase Auth for identity. RLS must be correct and safe.
+   - Storage remains untouched except for referencing existing assets (no renaming/moving files).
+4) AUDITABLE ECONOMY:
+   - Every point movement must be tracked (immutable ledger) and derivable.
+   - No silent mutations. No hidden “magic totals.” Derived views/caches are allowed but must reconcile with ledger.
+5) CONSISTENCY ACROSS ALL MEDIUMS:
+   - Crowns/ELO/badges/streaks must appear consistently in:
+     - profile header
+     - leaderboards
+     - contest results
+     - monthly giveaway
+     - activity feed / notifications
+     - room builder ownership/creator stats panels (if present)
+     - avatar creator cosmetics unlocks (if present)
+     - gallery voting/creator screens (if present)
+   - Points only ever “go” in the ledger. UI reads from derived “balances” computed from ledger.
+
+STEP 0 — SAFE REPO DISCOVERY & “DO-NOT-TOUCH” ZONES
+- Inspect the repo structure and map the application areas:
+  A) Room Builder module(s)
+  B) Avatar Creator module(s)
+  C) Contest/leaderboard modules
+  D) Admin modules
+  E) Supabase client + auth
+- Identify and declare “DO-NOT-TOUCH” folders/files for Builder/Avatar rendering & layout:
+  - You may only add non-visual data hooks (e.g., API calls) where necessary, without changing markup or classes.
+  - If a feature requires showing a new value, place it only where an existing text slot already exists, or add minimal text in an existing container without affecting layout.
+
+CORE ECONOMY PRINCIPLE: LEDGER + EVENTS + DERIVED VIEWS
+Implement points as an event-driven system:
+- Crowns: immutable ledger entries.
+- ELO: updated via pick grading events, sport+season scoped.
+- Badges: immutable awards, cosmetic only.
+- Streaks: evaluated by weekly activity, awards posted to crown ledger + badge awards.
+- Monthly giveaway: snapshot crowns to entries; never spend crowns.
+
+SUPABASE DATA MODEL (CREATE TABLES/MIGRATIONS IF MISSING; MINIMAL CHANGES)
+Create a schema (prefer “public” unless you already use another) with indexes and constraints.
+
+A) RULE CONFIG (admin-managed, versioned)
+- rule_sets:
+  id uuid pk, scope_type text (GLOBAL|SPORT|SEASON|CONTEST|SPONSOR),
+  scope_id uuid nullable, version_int int, rules_json jsonb,
+  created_at timestamptz, created_by uuid
+- rule_set_active:
+  scope_type text, scope_id uuid nullable, active_rule_set_id uuid
+
+B) CROWNS (authoritative currency)
+- crown_ledger:
+  id uuid pk, user_id uuid, amount_int int,
+  event_type text, ref_type text, ref_id uuid/text,
+  idempotency_key text unique,
+  meta jsonb, created_at timestamptz default now()
+- crown_balance_cache (optional but recommended for performance):
+  user_id uuid pk, total_crowns_int bigint, updated_at timestamptz
+- crown_status_cache:
+  user_id uuid pk, status_level text, updated_at timestamptz
+
+C) ELO (sport+season)
+- user_sport_elo:
+  id uuid pk, user_id uuid, sport_id uuid, season_id uuid,
+  current_elo_int int, current_tier text,
+  champion_unlocked bool default false,
+  updated_at timestamptz
+- elo_config can live inside rule_sets, but optionally store:
+  - elo_config:
+    sport_id uuid, season_id uuid, thresholds jsonb,
+    points_correct int, points_incorrect_champion int,
+    champion_threshold int, updated_at timestamptz
+
+D) CONTESTS + PICKS + SCORING (contest independence preserved)
+- contests:
+  id uuid pk, sport_id uuid, season_id uuid nullable, type text, title text,
+  status text (draft|open|closed|concluded),
+  opens_at timestamptz, closes_at timestamptz, concludes_at timestamptz,
+  rules_json jsonb, scoring_json jsonb, tiebreaker_json jsonb,
+  sponsor_id uuid nullable
+- contest_entries:
+  id uuid pk, contest_id uuid, user_id uuid, entered_at timestamptz
+- picks:
+  id uuid pk, contest_id uuid, user_id uuid, pick_json jsonb, submitted_at timestamptz
+- pick_results:
+  id uuid pk, pick_id uuid, is_correct bool, graded_at timestamptz, grade_details_json jsonb
+- contest_scores:
+  id uuid pk, contest_id uuid, user_id uuid,
+  score_numeric numeric, tiebreaker_value numeric/text nullable,
+  rank_int int nullable, percentile numeric nullable,
+  computed_at timestamptz
+
+E) STREAKS + TIME WINDOWS
+- user_weekly_activity:
+  user_id uuid, week_key text, has_entry bool, created_at timestamptz,
+  primary key(user_id, week_key)
+- user_streaks:
+  user_id uuid pk, current_streak_weeks int, best_streak int,
+  last_week_key text, updated_at timestamptz
+
+F) GIVEAWAYS (monthly)
+- giveaway_months:
+  id uuid pk, month_key text unique (YYYY-MM),
+  opens_at timestamptz, closes_at timestamptz,
+  status text (open|locked|drawn),
+  rules_json jsonb, prize_pool_json jsonb
+- giveaway_snapshot:
+  id uuid pk, giveaway_month_id uuid, user_id uuid,
+  crowns_at_lock_int bigint, entries_int bigint, eligible bool,
+  created_at timestamptz
+- giveaway_winners:
+  id uuid pk, giveaway_month_id uuid, user_id uuid,
+  prize_json jsonb, drawn_at timestamptz,
+  audit_json jsonb
+
+G) BADGES (cosmetic only; supports name tag + skin)
+- badge_definitions:
+  id uuid pk, code text unique, name text, description text,
+  type text (NAMETAG_BADGE|NAMETAG_SKIN|TROPHY_ONLY),
+  icon_ref text, rules_json jsonb, is_active bool
+- badge_awards:
+  id uuid pk, user_id uuid, badge_id uuid,
+  awarded_at timestamptz, award_reason_json jsonb,
+  idempotency_key text unique
+- user_badge_preferences:
+  user_id uuid pk,
+  nametag_skin_badge_id uuid nullable,
+  nametag_badge_ids jsonb, updated_at timestamptz
+
+H) NOTIFICATIONS / FEED (so points “translate to all feeds necessary”)
+- notifications:
+  id uuid pk, user_id uuid, type text,
+  title text, body text, meta jsonb,
+  read_at timestamptz nullable,
+  created_at timestamptz
+- activity_feed (optional global feed):
+  id uuid pk, user_id uuid nullable, entity_type text, entity_id text,
+  verb text, meta jsonb, created_at timestamptz
+
+I) AUDIT + OPS
+- audit_log:
+  id uuid pk, actor_user_id uuid, action text,
+  entity_type text, entity_id text,
+  before_json jsonb, after_json jsonb,
+  created_at timestamptz, ip_hash text nullable
+- fraud_flags:
+  id uuid pk, user_id uuid, flag_type text, severity int,
+  meta jsonb, created_at timestamptz, resolved_at timestamptz nullable
+
+RULES (ADMIN-CONFIGURABLE, SAFE DEFAULTS)
+Store these defaults in GLOBAL rules_json; allow overrides by SPORT/SEASON/CONTEST/SPONSOR.
+
+1) CROWNS
+- Entry:
+  contest_entry: +10
+  first_time_entry_bonus: +50 (once per user)
+  weekly_multi_entry_bonus: OFF by default (config: min_entries X, bonus Y)
+- Placement (award at contest conclude; best tier only):
+  first_place: +200
+  top_10_percent: +100 (requires min_participants default 10)
+  above_median: +25
+- Streak (weekly active = >=1 entry):
+  2 weeks: +50
+  4 weeks: +150
+  8 weeks: +400
+  reset on missed week
+- Bonus:
+  referral_referrer: +100
+  referral_referred: +100 (only after referred completes first entry; only once per referred)
+  share_leaderboard: +25 (daily cap 3)
+  sponsor multipliers: date windows with multipliers per event_type (default none)
+Crown Status thresholds:
+- Squire 0-500
+- Knight 501-2000
+- Baron 2001-5000
+- Duke 5001-10000
+- Royalty 10001+
+
+2) ELO (sport+season)
+- Pre-Champion: Correct +P, Incorrect +0
+- Champion: Correct +P, Incorrect -Q
+- Champion floor: never drop below champion_threshold; champion cannot be lost
+- Tier thresholds: Bronze/Silver/Gold/Champion from thresholds_json
+- Champion leaderboard: ON
+- Pre-Champion leaderboard visibility: OFF (only show tier+progress)
+
+3) GIVEAWAYS (monthly)
+- Entries = crowns_at_lock (lifetime crowns)
+- Crowns never spent
+- Eligibility: requires >=1 contest entry during that month (default ON, admin toggle)
+- Lock at month close; draw winners (admin action + optional job)
+- Winner constraints: max wins per user per month default 1
+
+4) BADGES (COSMETIC)
+- Trophy case shows all awards
+- Name tag slots: N icon badges (default 3) + 1 optional skin
+- Skins override name tag appearance only; badges layer on top; no scoring effect
+
+EVENT-DRIVEN POINTS FLOW (KEEP CLOSE COUNT OF “COMING AND GOING”)
+All “earn/spend” must flow through one of these:
+- CROWNS: crown_ledger (authoritative). Derived totals must reconcile.
+- ELO: user_sport_elo updated only from PickGraded events.
+- BADGES: badge_awards only.
+
+Implement a server-only GamificationEventBus with strict idempotency:
+Handlers:
+A) ContestEntered
+- create contest_entry
+- award entry crowns (idempotency_key = "CONTEST_ENTRY:{contest_entry_id}")
+- if user’s first ever contest entry: award first_time_entry_bonus (idempotency_key = "FIRST_TIME_BONUS:{user_id}")
+- write notification + activity feed entry (optional)
+
+B) PickSubmitted
+- store picks
+- optional notification “Picks submitted” (no points by default)
+
+C) PickGraded
+- store pick_results
+- update ELO for sport/season per correctness (idempotent per pick_id)
+- optional notification “ELO updated”
+
+D) ContestConcluded
+- compute contest_scores and ranks
+- award placement crowns once per contest per user (idempotency_key = "PLACEMENT:{contest_id}:{user_id}")
+- award badges for win/top placements
+- write activity feed event “won contest” etc.
+
+E) WeeklyBoundaryEvaluated
+- compute week_key per user timezone
+- update streaks and award milestone crowns (idempotency per milestone per streak run)
+- award streak badges
+
+F) BonusActionCompleted
+- referral completed (after referred’s first entry)
+- share leaderboard (cap enforced)
+- sponsor challenge completions (caps enforced)
+
+G) MonthlyGiveawayLocked / Drawn
+- snapshot eligible users and their entries
+- draw winners with auditable seed
+- notify winners + publish to leaderboard feed
+
+SUPABASE SECURITY (RLS MUST BE CORRECT)
+Implement RLS policies:
+- Users can read their own:
+  crown_ledger, crown_balance_cache, crown_status_cache, user_sport_elo,
+  badge_awards, user_badge_preferences, notifications, contest_entries, picks
+- Users can read public leaderboards/views that are explicitly public (contest_scores for concluded contests; champion leaderboard snapshots; giveaway winners)
+- Only admins can:
+  create/activate rule sets, create contests, grade picks, conclude contests,
+  lock/draw giveaways, adjust crowns (ADMIN_ADJUST), manage badge definitions, view audit logs
+- Use Supabase Auth JWT claims for role; store role in users table and/or custom claims
+
+CREATE “READ MODELS” FOR UI WITHOUT TOUCHING LAYOUT
+To avoid UI refactors, create stable API endpoints or Supabase views that map to existing UI expectations.
+Provide:
+- /api/me/summary:
+  crowns_total, crown_status, streak_current, streak_next_milestone,
+  giveaway_current_month {status, eligibility, entries},
+  elo_overview by sport,
+  badge_counts
+- /api/leaderboards/contest/:id (reads contest_scores)
+- /api/leaderboards/champion?sportId=... (Champion-only)
+- /api/feed (activity_feed + notifications, if your UI has a feed)
+These endpoints must return the exact shape needed by the existing components to avoid UI edits.
+
+CRITICAL: ROOM BUILDER & AVATAR CREATOR INTEGRATION (NO VISUAL CHANGES)
+- Do NOT modify builder/avatar rendering components or layouts.
+- Only integrate economy in these ways:
+  1) Read-only display: show Crown total/status where there is already a header slot, profile chip, or existing placeholder.
+  2) Unlock logic (if app supports it already):
+     - If cosmetics/room assets have “cost” or “unlock” fields, implement them as:
+       - either Crown threshold unlocks (recommended to avoid “spending”),
+       - or a separate “Credits” currency if spending is needed later (but do NOT introduce spending now unless app already expects it).
+     - For now: Crowns are primarily for status + giveaway entries; do not implement spending unless the UI already supports purchases.
+  3) Creator stats:
+     - If the builder/gallery has “creator points,” map those to Crowns via bonus rules (e.g., “room published +25 crowns” with daily cap) ONLY if such actions already exist in the UX. If not present, do not add new prompts or buttons.
+- If the app already tracks room publishes, gallery votes, avatar saves, etc., hook those server events into BonusActionCompleted with caps. If not present, skip.
+
+ADMIN EXPERIENCE (CONFIG WITHOUT UI DESTRUCTION)
+Create admin configuration screens ONLY inside existing admin area:
+- Rule Studio:
+  - safe form fields for common values + advanced JSON editor in an accordion
+  - versioning and rollback
+- Contest Builder:
+  - templates + pick schema + scoring + tie-breaker + schedule
+  - ELO override points per contest optional
+- Sponsor Campaign Builder:
+  - multiplier windows (2x weekend) + bonus challenges + caps
+- Ops:
+  - grading queue + conclude contest
+  - run jobs now (streak eval, giveaway lock/draw)
+- Reports:
+  - crowns minted, active users, conversion, exports CSV
+
+ANTI-ABUSE + INTEGRITY
+- Idempotency is mandatory for ALL award events.
+- Enforce caps server-side:
+  share daily cap; referral once per referred; sponsor challenge caps per user
+- Add rewards_suspended bool on users (admin controlled); if true, block crown awards and bonus awards (user can still play).
+- Audit log for every admin action (rules changes, grading, adjustments, draws).
+
+SCHEDULING / JOBS (REPLIT SAFE)
+Use one of:
+A) Supabase Scheduled Functions (preferred if you already use Edge Functions/cron)
+B) Replit cron (if configured)
+C) Lazy evaluation fallback:
+   - On user login or opening dashboard: if week/month boundary passed, run user-specific evaluations safely and idempotently
+Admin can also trigger jobs from Ops panel.
+
+IMPLEMENTATION ORDER (SAFE, NON-DESTRUCTIVE)
+1) Repo discovery, identify do-not-touch zones (builder/avatar), document them.
+2) Add Supabase migrations (new tables, indexes, constraints). Do not rename existing tables.
+3) Implement server services:
+   - RulesService, EventBus, LedgerService, EloService, StreakService, GiveawaysService, BadgesService
+4) Wire contest flows:
+   - enter -> crowns
+   - pick submit -> store
+   - grade -> ELO
+   - conclude -> contest leaderboard + placement crowns + badges
+5) Wire read models/endpoints so UI can display values without layout changes.
+6) Wire notifications/feed entries (optional but recommended for “points across mediums”).
+7) Add admin tools for config + ops + reports.
+8) Add tests (at least):
+   - crown idempotency
+   - contest independence
+   - ELO pre-champion no-negative
+   - champion floor and permanence
+   - streak reset + milestone award once
+   - giveaway snapshot eligibility + weighted draw
+
+DELIVERABLES
+- Fully functioning ecosystem with accurate “points coming and going”:
+  - Crown ledger is authoritative and auditable
+  - Crown totals/status/streak/giveaway entries consistent everywhere
+  - ELO consistent per sport/season and respects champion rules
+  - Badges consistent and cosmetic
+- NO styling/layout changes, especially in Room Builder and Avatar Creator.
+- Provide a concise CHANGELOG: tables/migrations added, files changed, how to run migrations/tests, and how to verify end-to-end.
+
+NOW IMPLEMENT THIS ENTIRE PLAN IN THE EXISTING REPLIT CODEBASE USING SUPABASE AS THE SOURCE OF TRUTH, WITHOUT ALTERING ANY CURRENT STYLING OR LAYOUT.

@@ -1,0 +1,392 @@
+Fantasy Royale App - Detailed Layout & Functionality
+Overview
+Fantasy Royale is a mobile-first fantasy sports contest platform. Users can enter free sponsored contests, earn Crown rewards, and compete for prizes.
+
+Layout Structure
+Header (Sticky)
+
+Logo (clickable, returns to Home)
+Light/Dark theme toggle
+"Switch to Sponsor/Fan" role toggle button
+Profile icon (upper right)
+Bottom Navigation (6 tabs)
+
+Home | My Contests | Stats | Talk | News | Merch
+Fan/Player View Features
+1. Home Tab
+
+Live news ticker (rotating sports headlines)
+Scrolling promo banner carousel (4 slides with cyan/pink indicator dots)
+Featured Premier Royale contest card
+Discover Contests grid
+Contest cards show: sponsor logo, prize pool, entry count, countdown timer
+2. Contest View (when tapping a contest)
+
+Contest header with sponsor branding
+Matchup picks interface (NFL playoffs, March Madness brackets, NBA games)
+AI Insights button (OpenAI-powered analysis)
+Tiebreaker question input
+Submit picks button
+Crown rewards display
+3. My Contests Tab
+
+List of entered contests
+Contest status (pending, live, completed)
+Entry details and picks made
+4. Stats Tab
+
+User performance statistics
+Win/loss record
+Crown balance and history
+Leaderboard position
+5. Talk Tab (Trash Talk)
+
+TikTok-style vertical video feed
+Embedded Instagram Reels (Austin Ekeler content)
+Predictions and celebrations from users
+Video categories: Predictions, Celebrations, Live
+6. News Tab
+
+Live sports headlines from NewsAPI.org (auto-refreshes every 5 minutes)
+Fantasy Royale platform announcements
+Link to Trash Talk section
+7. Merch Tab
+
+E-commerce store with 5 Fantasy Royale products
+Product grid with images, prices, ratings
+Size selection for apparel
+Favorites/wishlist functionality
+Shopping cart with quantity controls
+Crown rewards (10 Crowns per $1 spent)
+Category filters: All, T-Shirts, Hats, Apparel
+8. Profile (accessible from header)
+
+User avatar and stats
+Crown balance display
+Contest history
+Settings
+Sponsor Portal Features
+Dashboard
+
+"Featured Campaigns" scrolling banner carousel
+"Your Engagement" analytics graph (entries over time)
+Quick stats: Entries, Reach, Active contests
+Create New Contest CTA button
+Quick access tiles: Templates, Print Order, Analytics, Marketing
+Tier Selection
+
+4 pricing tiers: Local Legend ($99), Regional Champ ($299), Premier ($999), Enterprise (Custom)
+Feature comparison for each tier
+Contest Creation Wizard
+
+Multi-step form
+Contest type selection (NFL, NBA, March Madness)
+Prize configuration
+Branding/logo upload
+Preview before publishing
+Template Gallery
+
+Downloadable marketing graphics
+Social media templates
+Print-ready flyers and banners
+Print Ordering
+
+Entry forms, posters, table tents
+Location-based ordering
+Quantity selection
+Checkout flow
+Analytics Dashboard
+
+Detailed engagement metrics
+Entry trends chart
+Conversion rates
+Brand lift scores
+Marketing Assets
+
+Social media content library
+Video assets
+Banner downloads
+Design System
+Colors
+
+Primary: Cyan (#22D3EE)
+Accent: Orange to Pink gradient
+Background: Black (dark mode) / White (light mode)
+Cards: Zinc-900 with zinc-800 borders
+Typography
+
+Bold uppercase headings
+Clean sans-serif body text
+Components
+
+Rounded cards with subtle borders
+Gradient CTAs
+Glass-morphism effects (backdrop blur)
+Animated background elements (floating blurred circles)
+Data & Integrations
+Live Sports Data: TheSportsDB API (free, no key)
+News Feed: NewsAPI.org (requires key)
+AI Insights: OpenAI API (requires key)
+Payments: Stripe-ready (not yet connected)
+Mock Data: Contests, matchups, user profiles stored in JS files
+Global Design System
+Theme Support: Full light/dark mode toggle
+
+Dark mode: Black (#000000) background, zinc-900 cards, zinc-800 borders, white text
+Light mode: White/slate-100 background, white cards, slate-200 borders, dark text
+Brand Colors:
+
+Primary accent: Cyan-400 (#22D3EE) for buttons, highlights, active states
+Gradient accent: Orange-500 to Pink-500 for logo, special badges
+Success: Green-500 | Error: Red-500 | Warning: Yellow-400
+Typography:
+
+Headings: Font-black, uppercase, tracking-wide
+Section labels: Text-xs, font-black, uppercase, zinc-500
+Body: Text-sm to text-base, zinc-300 (dark) / zinc-700 (light)
+Card Style:
+
+Background: zinc-900 (dark) / white (light)
+Border: 1px zinc-800 (dark) / slate-200 (light)
+Border-radius: rounded-xl to rounded-2xl
+Hover: border-cyan-500/50, subtle glow
+Buttons:
+
+Primary CTA: bg-gradient-to-r from-cyan-500 to-cyan-400, text-black, font-bold, rounded-xl, py-4
+Secondary: bg-zinc-800, text-zinc-300, rounded-lg
+Icon buttons: p-2, rounded-full, bg-zinc-800
+Animated Background (dark mode):
+
+3 floating blurred circles (cyan, purple, orange) with pulse animation at different delays
+pointer-events-none, fixed position, z-0
+Layout Structure
+Container: max-w-md mx-auto (mobile-first, centered)
+
+Header (sticky top-0 z-50):
+
+Height: p-3
+Left: Logo image (h-12), clickable to return home
+Right: Row of icon buttons:
+Sun/Moon theme toggle (rounded-full, p-2)
+"Switch to Sponsor/Fan" pill button with icon
+Profile icon button (User icon, cyan when active)
+Background: bg-black/80 backdrop-blur-xl, border-b border-zinc-800
+Main Content: flex-1 overflow-y-auto pb-24 (space for bottom nav)
+
+Bottom Navigation (fixed bottom-0 z-50):
+
+6 equal tabs in a row
+Each tab: flex-col items-center, icon (20px) + label (text-[9px] uppercase)
+Active state: text-cyan-400 with dot indicator below
+Background: bg-gradient-to-t from-black via-zinc-950/95, border-t border-zinc-700/50
+Special "Talk" tab: pulsing cyan glow animation on icon
+Home Tab
+1. Live Ticker Bar:
+
+Full width, bg-zinc-900, border border-zinc-800, rounded-xl
+Left: "LIVE" badge (bg-cyan-400, text-black, text-[9px], rounded, with pulse dot)
+Right: Horizontally scrolling news text with emoji, animate marquee
+2. Promo Banner Carousel:
+
+Rounded-2xl, overflow-hidden, border border-zinc-800
+Slides transition with translateX animation
+Slide types:
+Gradient background (from-orange-600 to-pink-600) with sponsor logo, title, prize text
+Full-width image banners (h-24, object-cover)
+Navigation: Left/right chevron buttons (absolute, bg-black/60, rounded-full)
+Indicators: Centered row of dots at bottom
+Active: w-4, bg-gradient-to-r from-cyan-400 to-pink-500
+Inactive: w-2, bg-cyan-400/40
+3. Featured Premier Royale Section:
+
+Section label: "FEATURED PREMIER ROYALE"
+Large card with background image (opacity-30), gradient overlay
+Content: League badge, sponsor name, contest title, prize, entry count, countdown
+Sponsor logo: White rounded box in corner
+CTA button: "ENTER FREE" cyan pill
+4. Discover Contests Grid:
+
+Section label with "SEE ALL" link
+Vertical list of contest cards
+Each card: Background image, gradient overlay, league badge, sponsor logo, title, prize, stats
+Contest View
+Header: Back button + Contest title + Sponsor logo
+
+Matchup Picker:
+
+Grid of team matchup cards
+Each matchup: Two team buttons side by side
+Team button: Team logo/image, name, selection indicator
+Selected state: Cyan border, checkmark badge
+AI Insights Button:
+
+Sparkles icon + "AI Insights" text
+Triggers modal with OpenAI-generated analysis
+Tiebreaker Input:
+
+Label + number input field
+Placeholder text explaining the tiebreaker
+Submit Section:
+
+Crown rewards display (Crown icon + points earned)
+Large "SUBMIT PICKS" gradient button
+My Contests Tab
+Empty State: Trophy icon + "No contests entered yet" message
+
+Contest List:
+
+Cards showing entered contests
+Status badges (Pending, Live, Completed)
+Entry summary and prize info
+Stats Tab
+User Stats Card:
+
+Avatar, username, rank
+Win/loss/tie record
+Crown balance with icon
+Performance Charts:
+
+Area chart for historical performance
+Weekly/monthly toggle
+Leaderboard Preview:
+
+Top 5 users with rank badges
+Talk Tab (Trash Talk)
+TikTok-Style Feed:
+
+Full-height vertical video cards
+Category filter pills: All, Predictions, Celebrations, Live
+Each video card:
+Video thumbnail/embed (Instagram Reels)
+Overlay: Username, caption, timestamp
+Side action bar: Heart, Comment, Share icons with counts
+Instagram Embed Integration:
+
+Load Instagram embed.js script
+Process embeds when tab becomes active
+News Tab
+Header: "News" title with "LIVE" indicator (green pulse dot)
+
+Live Sports Headlines:
+
+List of news cards from NewsAPI
+Each card: Source badge, headline, timestamp, thumbnail if available
+Auto-refresh every 5 minutes
+Platform News Section:
+
+Fantasy Royale announcements
+Link to Trash Talk section
+Merch Tab (E-commerce Store)
+Header: ShoppingBag icon + "Merch" title + Cart button with badge count
+
+Crown Rewards Banner:
+
+Gradient bg (cyan/purple/orange at 20% opacity)
+Crown icon + "Earn 10 Crowns per $1 spent!"
+Category Filters:
+
+Horizontal scrolling pill buttons: All, T-Shirts, Hats, Apparel
+Active: bg-cyan-500 text-black
+Featured Products Carousel:
+
+Horizontal scroll of product cards (w-40 each)
+Product image, badge, name, price
+Product Grid:
+
+2-column grid
+Each product card:
+Square image with badges (BEST SELLER, NEW, LIMITED, PREMIUM)
+Heart favorite button (top-right, fills red when active)
+Name (line-clamp-2), star rating, price
+Sale prices show original crossed out
+Product Detail View:
+
+Full-width product image
+Back button, cart button in header
+Name, rating, reviews count
+Price (cyan-400 bold) + original price if on sale
+Description text
+Size selector (grid of size buttons, selected = cyan)
+Add to Cart button (gradient, full-width)
+Trust badges row: Free Shipping, Quality Guarantee, Earn Crowns
+Cart Drawer:
+
+Slides up from bottom (max-h-[80vh])
+Header with item count, X close button
+Empty state: Shopping bag icon + message
+Cart items: Product image, name, size, price, quantity +/- controls, remove X
+Footer (sticky): Subtotal, Crowns earned, Checkout button
+Profile View
+User Card:
+
+Large avatar
+Username, member since date
+Crown balance prominently displayed
+Stats Grid:
+
+Contests entered, wins, current streak
+Settings Links:
+
+Account, notifications, preferences
+Sponsor Portal
+Dashboard View:
+
+Featured Campaigns Carousel: (Same as Home promo carousel)
+
+Your Engagement Section:
+
+Compact card (p-4, rounded-2xl)
+Header: "Your Engagement" + green percentage badge
+Area chart (h-20) showing entry trends
+Bottom stats row: Entries, Reach, Active (3 columns)
+Create Contest CTA:
+
+Full-width gradient button
+Plus icon + "Create New Contest"
+Quick Actions Grid:
+
+2x2 grid of action tiles
+Each tile: Icon, title, subtitle
+Tiles: Templates, Print Order, Analytics, Marketing
+Active Contests Section:
+
+List of sponsor's contests with edit/manage options
+Tier Selection View:
+
+4 tier cards in vertical list
+Each card: Icon, tier name, price, feature bullets
+Gradient backgrounds based on tier level
+"Choose Plan" button
+Contest Creation Wizard:
+
+Step indicator (1/2/3/4)
+Multi-step form
+Contest type selection
+Prize configuration
+Branding upload
+Preview and publish
+Template Gallery:
+
+Category filter tabs
+Grid of downloadable templates
+Download button on hover
+Print Order Flow:
+
+Product selection with quantities
+Location management
+Order summary
+Checkout
+Analytics Dashboard:
+
+Key metrics cards in grid
+Performance charts
+Engagement breakdown
+Interactions & Animations
+Page transitions: Smooth opacity/transform
+Button hover: Scale slightly, add glow shadow
+Card hover: Border color change to cyan-500/50
+Carousel: 500ms ease-out slide transition
+Loading states: Pulse animation on skeletons
+Toast notifications: Slide in from top
+This prompt contains all specifications needed to recreate the Fantasy Royale UI/UX exactly.
+

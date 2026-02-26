@@ -1,0 +1,143 @@
+
+Featured Campaigns Carousel: A sliding banner with 4 slides (Nike Super Bowl, Buffalo Wild Wings March Madness, and 2 promo banner images). Has left/right arrows and dot indicators.
+Engagement Chart: An area chart showing weekly entry data (Mon-Sun) with 3 stats below: Entries (2.4K), Reach (45K), Active (3)
+"Create New Contest" button (cyan) - goes to Tier Selection view
+4 Quick Action buttons in a 2x2 grid:
+Templates - goes to Template Gallery view
+Analytics - goes to Analytics Dashboard view
+Marketing - goes to Marketing Assets view
+Order Assets (highlighted cyan) - goes to Print Order view (resets the order form)
+Active Contests list: Shows 2 mock contests (Super Bowl Challenge, March Madness Bracket). Each has a "Manage" button that goes to the Manage Contest view for that contest.
+2. TIER SELECTION (view: 'tiers')
+Reached from: Dashboard "Create New Contest" button, or various "upgrade" prompts.
+
+Back arrow - returns to Dashboard
+4 tier cards, each a tappable button:
+Premier Brand Royale ($Contact Sales, yellow) - goes to Sales Form view
+Local Legends Royale ($750) - goes to Wizard view, step 1
+Office Royale ($99) - goes to Wizard view, step 1
+Free Royale (Free) - goes to Wizard view, step 1
+3. WIZARD (view: 'wizard') - 5-step contest creation
+Reached from: Selecting a non-Premier tier.
+
+Back arrow at top: If on step 1, goes back to Tier Selection. Otherwise goes to previous step.
+X button at top right: Returns to Dashboard.
+Progress bar: 5 segments showing current step.
+Step 1 - Contest Type: Choose from Weekly Picks, Bracket Challenge, Survivor Pool, or Prop Bets.
+
+Step 2 - Duration: Single Event (1x), Weekly (1.5x), Monthly (2x), or Full Season (3.5x) - multiplies the base price.
+
+Step 3 - Audience Size: Slider from 10 to 50 (Free) or 750 (paid). If over 500 on a paid tier, a prompt appears with a "Talk to Sales" button that goes to Sales Form. If at 50 on Free tier, a "View Upgrade Options" button goes back to Tier Selection.
+
+Step 4 - Prizes & Boosts:
+
+Free tier shows a note about providing your own prizes with a "View paid tiers" link back to Tier Selection.
+Paid tiers show prize package options ($0 or +$100/$200) and Crown Boosts (Bonus Crown Week +$50, Double Crown Activation +$100, Featured Crown Challenge +$250).
+Step 5 - Contest Details: Text inputs for Contest Name, Brand Name, and a logo upload area (non-functional placeholder).
+
+Bottom section (paid tiers only): Running price breakdown showing base, duration, audience, prizes, boosts, and total.
+
+Bottom button:
+
+If audience size exceeds the tier max: "Contact Sales for Enterprise Pricing" (yellow) goes to Sales Form
+Steps 1-4: "Continue" advances to next step (disabled on step 1 if no type selected)
+Step 5: "Launch Contest - $X" (or "Launch Free Contest") goes to Success view
+4. SALES FORM (view: 'sales')
+Reached from: Selecting Premier tier, or exceeding audience limits.
+
+Back arrow - returns to Tier Selection
+Shows "Premier Brand Royale" banner
+Form fields: Name, Email, Phone, Company Name, Goals textarea
+"Request Custom Quote" button (yellow/amber) - currently does nothing (no backend wired)
+5. SUCCESS (view: 'success')
+Reached from: Completing wizard step 5.
+
+Animated green checkmark with "Contest Created!" message
+Contest summary card (name, type, capacity)
+4 action buttons in a 2x2 grid (all are placeholder/non-functional):
+Share Link
+QR Code
+Promo Kit
+Embed Code
+"Go to Dashboard" button - returns to Dashboard and resets the wizard
+6. MANAGE CONTEST (view: 'manage')
+Reached from: Tapping "Manage" on an active contest in the Dashboard.
+
+Back arrow - returns to Dashboard
+Status badge (Active/Paused/Ended)
+Contest stats card: name, type, entry progress bar, views/shares/crown multiplier
+4 action buttons in a 2x2 grid (all non-functional placeholders):
+Share
+QR Code
+Entries
+Leaderboard
+Edit form: Contest Name, Prize Pool, Start/End Dates, Max Entries (all editable inputs)
+Status toggle: Active / Paused / Ended buttons
+"Save Changes" button - returns to Dashboard (doesn't actually persist)
+"Delete Contest" button (red outline) - non-functional
+7. TEMPLATE GALLERY (view: 'templates')
+Reached from: Dashboard "Templates" button.
+
+Back arrow - returns to Dashboard
+Category filter tabs: All Templates, Social Posts, Stories, Banners, Print
+Info banner about customizable templates
+2-column grid of 8 templates with thumbnails. Hover reveals a "Download" button that triggers a file download of the image.
+"Need Custom Graphics?" section with a "Request Custom Design" button (non-functional)
+"Order Print Assets" button (cyan) - goes to Print Order view
+8. PRINT ORDER (view: 'print-order') - 3-step flow
+Reached from: Dashboard "Order Assets" button, or Templates "Order Print Assets" button.
+
+Step 1 - Products:
+
+Back arrow goes to Templates view
+5 print products with +/- quantity controls: Promotional Flyers ($0.35/ea, min 50), Table Toppers ($1.25/ea, min 25), Posters ($2.50/ea, min 10), Small Banners ($12/ea, min 1), Pull Up Banners ($89/ea, min 1)
+"Continue to Locations" button (disabled until products selected) - goes to step 2
+Step 2 - Locations:
+
+Back arrow goes to step 1
+Location cards with Name and Address inputs
+"Add Another Location" button to add shipping destinations
+"Continue to Checkout" button (disabled until locations filled) - goes to step 3
+Step 3 - Checkout:
+
+Back arrow goes to step 2
+Order summary with line items, subtotal, shipping ($8.99/location), total
+Shipping addresses listed
+"Pay $X.XX" button (green) - shows an alert: "Payment integration required. Please connect Stripe to enable checkout."
+9. ANALYTICS DASHBOARD (view: 'analytics')
+Reached from: Dashboard "Analytics" button.
+
+Back arrow - returns to Dashboard
+ROI Value card ($47,850)
+4 metric cards: Impressions (245K), Ad Clicks (18.4K), Avg Time (5:42), CTR (7.5%)
+Weekly engagement trend chart
+Brand engagement metrics: Social Shares (2,340), Brand Mentions (1,890), Return Visitors (8,900)
+Conversion funnel: Unique Visitors > Contest Entries > Email Signups (37.5% rate)
+Contest performance breakdown table (3 contests with views, clicks, entries, CTR, avg time)
+Audience demographics bar chart (age groups)
+Engagement Rate (12.4%) and Brand Lift Score (94) cards
+"Why Fantasy Royale Works" stats panel
+"Export Full Report" button - non-functional
+10. MARKETING ASSETS (view: 'marketing')
+Reached from: Dashboard "Marketing" button.
+
+Back arrow - returns to Dashboard
+Category filter tabs: All Assets, Social Posts, Flyers, Banners, Videos
+Info banner about official Fantasy Royale assets
+2-column grid of 6 marketing assets with thumbnails. Hover reveals a "Download" button (non-functional since images reference /marketing/ paths that may not exist)
+"Need Custom Assets?" section with "View Pricing Tiers" button - goes to Tier Selection
+11. SETTINGS (view: 'settings')
+Reached from: Dashboard gear icon.
+
+Back arrow - returns to Dashboard
+Company Profile: Company Name, Business Type dropdown, City, State
+Brand Assets: Logo upload (placeholder), Primary Brand Color picker
+Billing & Payments: Shows a mock Visa card, "Add Payment Method" button, current plan display, "View Billing History" link (all non-functional)
+Notifications: 4 toggle switches for Contest Entry Alerts, Weekly Reports, Prize Claims, Marketing Tips (toggles are visual only, not wired)
+Team Members: Shows 2 mock members (Owner and Manager), "Invite Team Member" button (non-functional)
+"Sign Out of Sponsor Hub" button (red) - non-functional
+Key Takeaways
+Functional buttons: Navigation between views, template downloads, wizard progression, banner carousel
+Non-functional / placeholder buttons: Share, QR Code, Promo Kit, Embed Code, Request Custom Design, Export Report, all Settings form saves, payment/checkout, integrations, team invites, delete contest, sign out
+All data is mock/hardcoded - contests, analytics, team members, billing info are all static constants in the component, not connected to the database
+

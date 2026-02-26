@@ -1,0 +1,124 @@
+A self-contained, themed gamification platform with:
+
+Crowns (virtual currency) economy + inventory ownership
+
+Character Creator (10-part avatar customization) with Crown purchases
+
+Isometric Room Builder (2.5D decoration / placement) with screenshot + featured image
+
+Public Gallery (community discovery, ratings, views/likes)
+
+Admin CMS (items, avatar parts, achievements, economy settings)
+
+It uses a consistent dark UI with purple/indigo gradients and gold Crown accents, designed for thumb-first use (44px touch targets, safe areas, bottom tabs).
+
+How it plugs into your fantasy sports app
+Integration pattern (high level)
+
+Your fantasy app remains the “sport engine” (lineups, contests, scoring, payouts, etc.).
+
+This add-on becomes a gamification module accessible via:
+
+A new “Fantasy Royale” entry point (tab, menu item, or post-contest CTA)
+
+Deep links from existing flows (after lineup submit, after contest ends, after win/loss)
+
+Shared identity and wallet
+
+Uses the same authenticated user identity (uid, displayName, email).
+
+Adds a Crowns wallet + XP/level + inventory to the user profile.
+
+Crowns can be earned from fantasy behaviors (examples):
+
+Daily login, streaks
+
+Completing lineups / entering contests
+
+Watching highlights, sharing picks, inviting friends
+
+Achievements tied to fantasy engagement
+
+The core user loop (why it works)
+
+Earn Crowns from fantasy engagement and daily rewards
+
+Spend Crowns on avatar parts and room items
+
+Build a room → take a screenshot → set it as featured
+
+Publish to Gallery → get views/ratings/likes
+
+More engagement → more Crowns → repeat
+
+This creates a strong progression + creativity + community flywheel layered on top of your fantasy app.
+
+What the user experiences
+Global navigation (mobile-only)
+
+Top header: brand + Crown balance + user avatar
+
+Bottom tabs (5): Home, Character, Builder, Gallery, Admin
+
+Admin only appears/works for admin role (or demo mode)
+
+Screen: Character Creator
+
+Full “paper doll” avatar system with layered rendering:
+Shoes → Legs → Shirt → Jacket → Accessories → Head → Hair → Eyes → etc.
+
+10 categories with swipe navigation and a purchasable item grid.
+
+Clear “Owned / Locked / Selected” states and a fixed “Save Character” action.
+
+Screen: Room Builder
+
+Full-screen isometric grid canvas (64×32 diamond tiles)
+
+Pinch zoom + drag pan + tap-to-place
+
+Rules system (collision, stackable, layers, rotations)
+
+Save settings drawer + screenshot capture + featured image selection
+
+Screen: Gallery
+
+Browse public rooms with search/filter/sort
+
+Grid or list view, strong social proof metrics (rating, views, likes)
+
+Discovery becomes a retention hook independent of fantasy contests
+
+Screen: Admin CMS
+
+Mobile-friendly admin tooling for:
+
+Room items catalog (type, price, rarity, visibility, placement rules, images)
+
+Avatar parts catalog (type, gender, price, visibility, SVG/PNG)
+
+Achievement definitions (conditions, thresholds, rewards)
+
+Economy settings (daily reward, streak multipliers, limits)
+
+What this add-on gives the fantasy sports business
+
+Retention: daily streaks + progression keeps users returning even off-season/off-contest
+
+Monetization: Crowns become a spend sink (and can be paired with paid boosts or bundles)
+
+Community: gallery creates UGC and social identity around your brand
+
+Differentiation: turns a typical fantasy app into a “collect/build/show-off” ecosystem
+
+What “feature parity” means here
+
+No matter the framework (React Native, Flutter, SwiftUI), the add-on preserves:
+
+Navigation layout + gestures + safe-area behavior
+
+Visual system (dark, purple/indigo gradients, gold economy accents)
+
+Data models (users, rooms, placed items, catalog items/parts, achievements)
+
+Rules (inventory ownership, pricing, placement layers, collision, rotations, ratings)

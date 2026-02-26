@@ -1,0 +1,67 @@
+Push Notification System Prompt
+Overview
+Implement a comprehensive push notification system for Fantasy Royale that delivers marketing, promotional, live game updates, and account alerts to users. Notifications should be enabled by default upon signup and integrate with the existing notification preferences system.
+Notification Categories
+1. Marketing & Promotions
+
+New contest launches and featured contests
+Special promotional campaigns
+Sponsor-related offers and content
+Monthly giveaway announcements
+Crown reward opportunities
+Tier advancement celebrations (Squire → Knight, etc.)
+
+2. Live Game Updates
+
+Game start reminders (15 minutes before tipoff)
+Live score updates for games in active contests
+Final score notifications
+Upset alerts (underdog wins in user's picks)
+Close game notifications (games within 5 points in final minutes)
+
+3. Contest Alerts
+
+Contest entry confirmations
+Contest start notifications
+Deadline reminders (1 hour before contest locks)
+Grading completion alerts
+Standings updates (moved up/down in leaderboard)
+Contest results with placement and crowns earned
+Winner announcements for top placements
+
+4. Account Notifications
+
+Welcome notification after signup
+Daily streak reminders
+Streak milestone achievements
+Badge unlock notifications
+ELO tier changes (promotion/demotion)
+Crown balance updates (significant earnings)
+Bonus expiration warnings
+Profile activity (if social features enabled)
+Referral program updates
+
+Integration with Existing System
+Map to Current Notification Toggles (Settings → Notifications)
+
+Contest Reminders → Contest entry deadlines, game start times
+Results → Contest grading complete, final standings, placement awards
+Giveaway Alerts → Monthly giveaway launches, winner announcements
+Badge Awards → Badge unlock notifications
+Streak Reminders → Daily streak continuation prompts
+Crown Updates → Crown earnings, tier advancement, bonus expirations
+Social Activity → Talk feed interactions, mentions, community updates
+Marketing → Promotional campaigns, new features, sponsor offers
+
+Additional Settings Needed
+
+Live Game Updates toggle (new)
+Lineup Changes toggle (for future roster management features)
+Notification frequency settings (immediate, batched, quiet hours)
+
+Technical Implementation Requirements
+Push Notification Service
+
+Use Expo Push Notifications (compatible with Expo SDK 54)
+Store push tokens in user_profiles table (new column: push_token)
+Handle token refresh and device changes
